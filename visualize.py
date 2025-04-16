@@ -17,6 +17,7 @@ from torchvision import datasets, models, transforms
 from retinanet.dataloader import CocoDataset, CSVDataset, collater, Resizer, AspectRatioBasedSampler, Augmenter, \
 	UnNormalizer, Normalizer
 
+import retinanet.model
 
 assert torch.__version__.split('.')[0] == '1'
 
@@ -45,9 +46,12 @@ def main(args=None):
 	sampler_val = AspectRatioBasedSampler(dataset_val, batch_size=1, drop_last=False)
 	dataloader_val = DataLoader(dataset_val, num_workers=1, collate_fn=collater, batch_sampler=sampler_val)
 
-	retinanet = torch.load(parser.model)
+	#retinanet = torch.load(parser.model)
 
-	use_gpu = True
+	# 수정된 코드
+	retinanet = torch.load(parser.model, map_location=torch.device('cpu'))
+
+	use_gpu = False
 
 	if use_gpu:
 		if torch.cuda.is_available():
@@ -100,7 +104,10 @@ def main(args=None):
 				print(label_name)
 
 			cv2.imshow('img', img)
-			cv2.waitKey(0)
+			key = cv2.waitKey(0)
+
+			if key == ord('q'):
+				break
 
 
 
