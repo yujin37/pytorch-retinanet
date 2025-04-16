@@ -320,14 +320,22 @@ def resnet34(num_classes, pretrained=False, **kwargs):
     return model
 
 
-def resnet50(num_classes, pretrained=False, **kwargs):
+def resnet50(num_classes, pretrained=False, custom_weight_path=None, **kwargs):
     """Constructs a ResNet-50 model.
     Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet
     """
     model = ResNet(num_classes, Bottleneck, [3, 4, 6, 3], **kwargs)
-    if pretrained:
-        model.load_state_dict(model_zoo.load_url(model_urls['resnet50'], model_dir='.'), strict=False)
+    if custom_weight_path:
+            print(f"Loading custom weights from {custom_weight_path}")
+            #model.load_state_dict(torch.load(custom_weight_path), strict=False)
+            model.load_state_dict(torch.load(custom_weight_path, map_location=torch.device('cpu')), strict=False)
+
+    else:
+        print("Loading ImageNet pretrained weights")
+        model.load_state_dict(
+            model_zoo.load_url(model_urls['resnet50'], model_dir='.'), strict=False
+        )
     return model
 
 

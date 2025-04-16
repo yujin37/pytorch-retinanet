@@ -14,7 +14,7 @@ from torch.utils.data import DataLoader
 
 from retinanet import coco_eval
 from retinanet import csv_eval
-
+import torch.nn.utils.prune as prune
 assert torch.__version__.split('.')[0] == '1'
 
 print('CUDA available: {}'.format(torch.cuda.is_available()))
@@ -30,7 +30,7 @@ def main(args=None):
     parser.add_argument('--csv_val', help='Path to file containing validation annotations (optional, see readme)')
 
     parser.add_argument('--depth', help='Resnet depth, must be one of 18, 34, 50, 101, 152', type=int, default=50)
-    parser.add_argument('--epochs', help='Number of epochs', type=int, default=100)
+    parser.add_argument('--epochs', help='Number of epochs', type=int, default=1)
 
     parser = parser.parse_args(args)
 
@@ -68,6 +68,7 @@ def main(args=None):
 
     sampler = AspectRatioBasedSampler(dataset_train, batch_size=2, drop_last=False)
     dataloader_train = DataLoader(dataset_train, num_workers=3, collate_fn=collater, batch_sampler=sampler)
+    print(len(dataloader_train))  # 배치 개수 = iteration 수
 
     if dataset_val is not None:
         sampler_val = AspectRatioBasedSampler(dataset_val, batch_size=1, drop_last=False)
@@ -79,7 +80,35 @@ def main(args=None):
     elif parser.depth == 34:
         retinanet = model.resnet34(num_classes=dataset_train.num_classes(), pretrained=True)
     elif parser.depth == 50:
-        retinanet = model.resnet50(num_classes=dataset_train.num_classes(), pretrained=True)
+        #original
+        #retinanet = model.resnet50(num_classes=dataset_train.num_classes(), pretrained=True)
+        #new
+        retinanet = model.resnet50(num_classes=dataset_train.num_classes(), pretrained=True, custom_weight_path='./checkpoints/coco_pre-trained_model.pt')
+        #parameters_to_prune = (
+        #    (retinanet.layer2[0].conv1, 'weight'),
+        #    (retinanet.layer2[1].conv2, 'weight'),
+        #    (retinanet.layer3[0].conv2, 'weight'),
+        #    (retinanet.layer3[1].conv1, 'weight'),
+        #    (retinanet.layer3[2].conv3, 'weight'),
+        #    (retinanet.layer4[0].conv2, 'weight'),
+        #    (retinanet.layer4[1].conv3, 'weight'),
+        #    (retinanet.layer4[2].conv3, 'weight'),
+        #)
+        #prune.global_unstructured(
+        #    parameters_to_prune,
+        #    pruning_method=prune.L1Unstructured,
+        #    amount=0.9,
+        #)
+        #apply_pruning(retinanet, conv_prune_amount=0.6, linear_prune_amount=0.4)
+        #prune.l1_unstructured(retinanet.layer3[1].conv1, name="weight", amount=0.2)
+        #prune.l1_unstructured(retinanet.layer4[2].conv3, name="weight", amount=0.2)
+        #for name, module in retinanet.named_modules():
+        #    if isinstance(module, torch.nn.Conv2d):
+        #        print(f"Pruning Conv2d layer: {name}")
+        #        prune.l1_unstructured(module, name='weight', amount=0.1)  # 20% 프루닝
+        #    elif isinstance(module, torch.nn.Linear):
+        #        print(f"Pruning Linear layer: {name}")
+        #        prune.l1_unstructured(module, name='weight', amount=0.1)  # 40% 프루닝
     elif parser.depth == 101:
         retinanet = model.resnet101(num_classes=dataset_train.num_classes(), pretrained=True)
     elif parser.depth == 152:
@@ -119,6 +148,8 @@ def main(args=None):
         epoch_loss = []
 
         for iter_num, data in enumerate(dataloader_train):
+            if iter_num >= 5:  # 예: 1000 iteration까지만 학습
+                break
             try:
                 optimizer.zero_grad()
 
@@ -166,12 +197,11 @@ def main(args=None):
             print('Evaluating dataset')
 
             mAP = csv_eval.evaluate(dataset_val, retinanet)
-
+            
         scheduler.step(np.mean(epoch_loss))
-
         torch.save(retinanet.module, '{}_retinanet_{}.pt'.format(parser.dataset, epoch_num))
-
-    retinanet.eval()
+        
+    #retinanet.eval()
 
     torch.save(retinanet, 'model_final.pt')
 

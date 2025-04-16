@@ -1,7 +1,9 @@
 from pycocotools.cocoeval import COCOeval
 import json
 import torch
+import csv
 
+log_path = 'final_result_log.csv'
 
 def evaluate_coco(dataset, model, threshold=0.05):
     
@@ -13,7 +15,8 @@ def evaluate_coco(dataset, model, threshold=0.05):
         results = []
         image_ids = []
 
-        for index in range(len(dataset)):
+        #for index in range(len(dataset)):
+        for index in range(1):
             data = dataset[index]
             scale = data['scale']
 
@@ -78,6 +81,11 @@ def evaluate_coco(dataset, model, threshold=0.05):
         coco_eval.evaluate()
         coco_eval.accumulate()
         coco_eval.summarize()
+        mAP = coco_eval.stats[0]
+        with open(log_path, 'a', newline='') as f:
+            writer = csv.writer(f)
+            #writer.writerow(['prune_ratio', 'final_loss', 'final_mAP'])
+            writer.writerow([0, mAP])
 
         model.train()
 
